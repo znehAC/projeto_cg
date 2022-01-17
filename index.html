@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <input type="file" id="inputfile">
+
+    <script type="vertex" id="vs">
+        #version 300 es
+
+        in vec4 position;
+        in vec4 color;
+        out vec4 vColor;
+        uniform mat4 mvpMatrix;
+
+        void main() {
+            vColor = color;
+            gl_Position = mvpMatrix*position ;
+        }
+    </script>
+
+    <script type="fragment" id="fs">
+        #version 300 es
+        precision highp float;
+
+        in vec4 vColor;
+        out vec4 fragColor;
+
+        void main() {
+            fragColor = vColor;
+        }
+    </script>
+
+    <canvas id="webgl-canvas"></canvas>
+    
+    <script type="text/javascript" src="Common/MV.js"></script>
+    <script type="text/javascript" src="index.js"></script> 
+    
+    
+</body>
+</html>
