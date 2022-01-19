@@ -54,10 +54,10 @@ function load_example(){
         procces_file(data)
         run()
     }).catch( (error) => {
-            fetch(`http://${self.location.host}/example.ogl`).then(response => response.text()).then((data) => {
-                procces_file(data)
-                run()
-            })
+        fetch(`http://${self.location.host}/example.ogl`).then(response => response.text()).then((data) => {
+            procces_file(data)
+            run()
+        })
     })
     
 
