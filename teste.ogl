@@ -2,7 +2,7 @@ arquivo de pós-processamento
 
 n.nos n.elem n.listas
 #
- 2022  3    1
+ 2022  2    1
 
 coordx coordy coordz deslx delsy deslz
 #
@@ -2032,8 +2032,8 @@ coordx coordy coordz deslx delsy deslz
 tpelem (1 - barra / 2 - triang / 3 - quad) grauaprox nó1 nó2...non
 #
    2   3    28   247   248    29   252   253   249   251   250    57
-   2   3    27   254   255    28   259   260   256   258   257    58
    2   3    26   261   262    27   266   267   263   265   264    59
+  
 
 título da lista
 #

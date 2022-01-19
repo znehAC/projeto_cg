@@ -5,9 +5,12 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 </head>
 <body>
     <input type="file" id="inputfile">
+    <button id="example-button" onclick="load_example()">Carregar Preview</button>
 
     <script type="vertex" id="vs">
         #version 300 es
@@ -36,7 +39,6 @@
     </script>
 
     <canvas id="webgl-canvas"></canvas>
-    
     <script type="text/javascript" src="Common/MV.js"></script>
     <script type="text/javascript" src="index.js"></script> 
     
