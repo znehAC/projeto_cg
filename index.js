@@ -44,7 +44,7 @@ canvas.addEventListener('mouseup', mouseUp, true)
 
 function load_example(){
     console.log(self.location.host);
-    fetch(`https://${self.location.host}/${self.location.pathname}/example.ogl`).then(response => {
+    fetch(`https://${self.location.host}/projeto_cg/example.ogl`).then(response => {
         if( response.ok){
             return response.text()
         }else{
