@@ -45,10 +45,23 @@ canvas.addEventListener('mouseup', mouseUp, true)
 function load_example(){
     console.log("asasdfasdfdsa");
     console.log(self.location.host);
-    fetch(`http://${self.location.host}/example.ogl`).then(response => response.text()).then((data) => {
+    
+    fetch(`https://${self.location.host}/example.ogl`).then(response => {
+        if( response.ok){
+            return response.text()
+        }else{
+            throw new Error("server is not https")
+        }
+    }).then((data) => {
         procces_file(data)
         run()
+    }).catch( (error) => {
+            fetch(`http://${self.location.host}/example.ogl`).then(response => response.text()).then((data) => {
+                procces_file(data)
+                run()
+            })
     })
+    
 
 }
 
@@ -175,7 +188,6 @@ function createElements(){ //cria o array de vertices para fazer um wireframe
 	{
         var face = elements[i]
         face = formatElement(face)
-        console.log("isso que chegou", face)
         //WIREFRAME
         positionsArray.push(vertices[face[0]])
         colorsArray.push(wireColor)
@@ -250,7 +262,7 @@ function formatElement(element){ //element = type, size, points...
         wireframeArray = points
     }
 
-    console.log("isso que ta saindo")
+
     console.log(wireframeArray)
     return wireframeArray
 }
