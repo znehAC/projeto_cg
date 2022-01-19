@@ -3,14 +3,21 @@ let num_elements = 0
 let num_lists = 0
 let vertices = []
 let elements = []
-let lists = {}
+let lists = []
 let meshVerticesQuantity = [] //quantidade de vertices para cada elemento em wireframe
 let solidVerticesQuantity = [] //quantidade de vertices para cada elemento em solido
-
 let positionsArray = []
 let colorsArray = []
-let wireColor = vec4(1.0, 0.0, 0.0, 1.0)
+let wireColor = vec4(0.0, 0.0, 0.0, 1.0)
 let solidColor = vec4(0.9, 0.9, 0.9, 1.0)
+let listColor = vec4(0.0, 0.6, 0.0, 1.0)
+
+let render_list = false
+var currentListPositionsArray = []
+var currentListColorsArray = []
+let currentListVertices = []
+let currentListColors = []
+let loaded_list = 1
 
 let dragging = false
 let mouseX = 0
@@ -42,6 +49,28 @@ canvas.addEventListener('mousedown', mouseDown, true)
 canvas.addEventListener('mousemove', mouseMove, true)
 canvas.addEventListener('mouseup', mouseUp, true)
 
+function reset(){
+    num_vertices = 0
+    num_elements = 0
+    num_lists = 0
+    vertices = []
+    elements = []
+    lists = []
+    meshVerticesQuantity = []
+    solidVerticesQuantity = []
+    positionsArray = []
+    colorsArray = []
+    render_list = false
+    currentListPositionsArray = []
+    currentListColorsArray = []
+    currentListVertices = []
+    currentListColors = []
+    loaded_list = 1
+    translateMat = translate(0., 0., -20.)
+    rotateMat = mult(rotateX(100), mat4())
+    modelViewMatrix = mult(translateMat, rotateMat)
+}
+
 function load_example(){
     console.log(self.location.host);
     fetch(`https://${self.location.host}/${self.location.pathname}/example.ogl`).then(response => {
@@ -59,8 +88,6 @@ function load_example(){
             run()
         })
     })
-    
-
 }
 
 function load_file(){
@@ -74,6 +101,7 @@ function load_file(){
 }
 
 function procces_file(file){
+    reset()
     var file_text = file.split('#')
     var meta = file_text[1].split('\n')[1]
     get_meta(meta)
@@ -93,6 +121,8 @@ function procces_file(file){
     get_lists(file_text[4])
     console.log("LISTS")
     console.log(lists)
+
+    document.getElementById("list-button").style.display = "inline"
 }
 
 function get_meta(text){
@@ -164,19 +194,116 @@ function get_vertices_quantity(size, type){
 
 function get_lists(text){
     text = text.split("\n")
-    var name = text[1]
-    lists[name] = []
+    var name = text[1].replace("\r", "")
     text = text.slice(2)
-
-    text.forEach(item => {
-        item = item.split(" ")
-        item = item.filter(function(value, index, arr){ 
-            return value != ""
-        })
-
-        lists[name].push(item)
+    text = text.filter(function(value, index, arr){ 
+        return value != ""
     })
 
+  
+    for (let i = 0; i < num_lists; i++) {
+        var list = text.slice(i*num_vertices, num_vertices)
+
+        list = list.filter(function(value, index, arr){ 
+                    return value != ""
+                })
+
+        for (let i = 0; i < list.length; i++) {
+            var item = list[i].split(" ")
+
+            item = item.filter(function(value, index, arr){ 
+                return value != ""
+            })
+            for (let j = 0; j < item.length; j++) {
+                item[j] = parseFloat(item[j])   
+            }
+
+                list[i] = item
+        }
+
+                
+        lists.push(name)
+        lists.push(list)  
+    }
+
+}
+
+function createList(){
+    var listName = lists[0]
+    var list = lists[1]
+    console.log(list);
+
+    for (let i = 0; i < num_vertices; i++) {
+        var vertOffset = list[i]
+        var color = vertOffset[3]
+        
+        vertOffset = vertOffset.slice(0, 3)
+
+        var vert = vertices[i].slice(0, 3)
+        var newVert = []
+
+        for (let j = 0; j < 3; j++) {
+            newVert[j] = vert[j] + vertOffset[j]
+        }
+        newVert.push(1)
+        newVert = vec4(newVert)
+        currentListVertices.push(newVert)
+        currentListColors.push(color)
+
+    }
+
+}
+
+
+function createListElements(){
+    currentListPositionsArray = []
+    currentListColorsArray = []
+
+    for(var i = 0; i < elements.length; i++)
+	{
+        var face = elements[i]
+        face = formatElement(face)
+        //WIREFRAME
+        currentListPositionsArray.push(currentListVertices[face[0]])
+        currentListColorsArray.push(vec4(0.7, 0.7, 0.7, 1.0))
+        var wireframeSize = 2
+
+
+        for(var j = 0; j< face.length; j++)
+		{
+            currentListPositionsArray.push(currentListVertices[face[j]])
+            currentListPositionsArray.push(currentListVertices[face[j]])
+            currentListColorsArray.push(vec4(0.7, 0.7, 0.7, 1.0))
+            currentListColorsArray.push(vec4(0.7, 0.7, 0.7, 1.0))
+            wireframeSize += 2
+		}
+
+        currentListPositionsArray.push(currentListVertices[face[0]])
+        currentListColorsArray.push(vec4(0.7, 0.7, 0.7, 1.0))
+        meshVerticesQuantity[i] = wireframeSize
+
+
+        // SOLID
+        var v0 = currentListVertices[face[0]]
+        var triangleSize = 0
+
+        for(var j = 1; j< face.length - 1; j++)
+		{
+            currentListPositionsArray.push(v0)
+            currentListColorsArray.push(listColor)
+
+            currentListPositionsArray.push(currentListVertices[face[j]])
+            currentListColorsArray.push(listColor)
+
+            currentListPositionsArray.push(currentListVertices[face[j+1]])
+            currentListColorsArray.push(listColor)
+
+            triangleSize += 3
+		}
+
+        solidVerticesQuantity[i] = triangleSize
+
+	}
 }
 
 function createElements(){ //cria o array de vertices para fazer um wireframe
@@ -240,7 +367,7 @@ function formatElement(element){ //element = type, size, points...
         
         var loopLength = (size-1)*2+1
         var skipSize = size +1
-        // console.log(skipSize)
+
         for (let i = 0; i < size+1; i++) {
             wireframeArray.push(points[i])       
         }
@@ -260,8 +387,6 @@ function formatElement(element){ //element = type, size, points...
         wireframeArray = points
     }
 
-
-    console.log(wireframeArray)
     return wireframeArray
 }
 
@@ -378,10 +503,21 @@ gl.useProgram(program)
 
 
 
+function toggle_list(){
+    console.log(!render_list);
+    render_list = !render_list
+    if(render_list){
+        createList()
+        createListElements()
+        loaded_list = 0
+    }
+}
+
 function run(){
     createElements() // adiciona no positionsArray a versao wireframe e uma versao solida de cada elemento
-
+    
     console.log(positionsArray)
+    let listBuffer = gl.createBuffer()
     let positionBuffer = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
     gl.bufferData(gl.ARRAY_BUFFER, flatten(positionsArray), gl.STATIC_DRAW)
@@ -389,7 +525,7 @@ function run(){
     gl.vertexAttribPointer(positionLoc, 4, gl.FLOAT, false, 0, 0)
     gl.enableVertexAttribArray(positionLoc)
 
-
+    let listColorBuffer = gl.createBuffer()
     let colorBuffer = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)
     gl.bufferData(gl.ARRAY_BUFFER, flatten(colorsArray), gl.STATIC_DRAW)
@@ -404,8 +540,17 @@ function run(){
     let modelViewProjectionMatrixLoc = gl.getUniformLocation(program, "mvpMatrix")
 
     let render = function (){
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT )
+        // console.log(running);
+        gl.clear(gl.COLOR_BUFFER_BIT)
         gl.clearColor(1.0, 1.0, 1.0, 1.0)
+
+        if(loaded_list == 0 && render_list){ //bind list buffers
+            gl.bindBuffer(gl.ARRAY_BUFFER, listColorBuffer)
+            gl.bufferData(gl.ARRAY_BUFFER, flatten(currentListColorsArray), gl.STATIC_DRAW)
+            gl.bindBuffer(gl.ARRAY_BUFFER, listBuffer)
+            gl.bufferData(gl.ARRAY_BUFFER, flatten(currentListPositionsArray), gl.STATIC_DRAW)
+            loaded_list = 1
+        }
 
         modelViewMatrix = setMatrix()   
         modelViewProjection = mult(projectionMatrix, modelViewMatrix)
@@ -416,9 +561,27 @@ function run(){
         for(var j = 0; j < num_elements; j++){
             var wireSize = meshVerticesQuantity[j]
             var solidSize = solidVerticesQuantity[j]
+            
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
+            gl.vertexAttribPointer(positionLoc, 4, gl.FLOAT, false, 0, 0)
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)
+            gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 0, 0)
 
             gl.drawArrays(gl.LINES,j*(wireSize + solidSize), wireSize)
             gl.drawArrays(gl.TRIANGLES,j*(wireSize + solidSize) + wireSize, solidSize)
+
+            if(render_list && loaded_list == 1){
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, listBuffer)
+                gl.vertexAttribPointer(positionLoc, 4, gl.FLOAT, false, 0, 0)
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, listColorBuffer)
+                gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 0, 0)
+
+                gl.drawArrays(gl.LINES,j*(wireSize + solidSize), wireSize)
+                gl.drawArrays(gl.TRIANGLES,j*(wireSize + solidSize) + wireSize, solidSize)
+            }
         }
         
         requestAnimationFrame(render)
