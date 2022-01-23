@@ -1,3 +1,17 @@
+var palette = [
+    vec4(0.0, 0.0, 1.0, 1.0),
+    vec4(0.0, 0.3, 1.0, 1.0),
+    vec4(0.0, 0.6, 1.0, 1.0),
+    vec4(0.0, 0.8, 1.0, 1.0),
+    vec4(0.0, 1.0, 0.0, 1.0),
+    vec4(1.0, 0.8, 0.0, 1.0),
+    vec4(1.0, 0.6, 0.0, 1.0),
+    vec4(1.0, 0.3, 0.0, 1.0),
+    vec4(1.0, 0.0, 0.0, 1.0)
+]
+
+var intervals = []
+var intervalSize
 let num_vertices = 0
 let num_elements = 0
 let num_lists = 0
@@ -13,16 +27,24 @@ let solidColor = vec4(0.9, 0.9, 0.9, 1.0)
 let listColor = vec4(0.0, 0.6, 0.0, 1.0)
 
 let render_list = false
-var currentListPositionsArray = []
-var currentListColorsArray = []
-let currentListVertices = []
-let currentListColors = []
+var currentListPositionsArray = [] // usado nos buffers
+var currentListColorsArray = [] // usado nos buffers
+
+let render_undeformed = 1
+let render_deformed = 1
+let render_results = 1
+
+let currentListVertices = [] //armazena as vertices da lista
+let currentListColors = [] //armazena as cores de cada vertice da lista
+
 let loaded_list = 1
+let resetted = 1
 
 let dragging = false
 let mouseX = 0
 let mouseY = 0
 let keyDown = 0
+let lastKeyDown = 0
 
 let rotationGain=1.0
 let translationGain= 0.03
@@ -35,13 +57,16 @@ let rotateMat = mult(rotateX(100), mat4())
 let modelViewMatrix = mult(translateMat, rotateMat)
 
 var canvas = document.getElementById("webgl-canvas")
-canvas.width = window.innerWidth
-canvas.height = window.innerHeight
+canvas.width = window.innerWidth*0.99
+canvas.height = window.innerHeight*0.955
 let aspect= canvas.width/canvas.height
 
 let projectionMatrix = perspective(45,aspect,0.5,1000.5)
 
 document.getElementById('inputfile').addEventListener('change', load_file)
+let gl = canvas.getContext("webgl2")
+canvas.addEventListener("contextmenu", e => e.preventDefault());
+
 
 document.onkeydown = handleKeyDown
 document.onkeyup = handleKeyUp
@@ -100,6 +125,29 @@ function load_file(){
     fr.readAsText(this.files[0])
 }
 
+function toggle_list(){
+    render_list = !render_list
+    if(render_list){
+        
+        createList()
+        createListElements()
+        
+        loaded_list = 0
+    }
+}
+
+function toggle_undeformed(){
+    render_undeformed = render_undeformed*-1
+}
+function toggle_results(){
+    render_results = render_results*-1
+}
+function toggle_deformed(){
+    render_deformed = render_deformed*-1
+}
+
+
+
 function procces_file(file){
     reset()
     var file_text = file.split('#')
@@ -123,6 +171,9 @@ function procces_file(file){
     console.log(lists)
 
     document.getElementById("list-button").style.display = "inline"
+    document.getElementById("undeformed-button").style.display = "inline"
+    document.getElementById("deformed-button").style.display = "inline"
+    document.getElementById("results-button").style.display = "inline"
 }
 
 function get_meta(text){
@@ -217,21 +268,18 @@ function get_lists(text){
             for (let j = 0; j < item.length; j++) {
                 item[j] = parseFloat(item[j])   
             }
-
                 list[i] = item
         }
-
                 
         lists.push(name)
         lists.push(list)  
     }
-
 }
 
 function createList(){
+    getListColors()
     var listName = lists[0]
     var list = lists[1]
-    console.log(list);
 
     for (let i = 0; i < num_vertices; i++) {
         var vertOffset = list[i]
@@ -248,12 +296,36 @@ function createList(){
         newVert.push(1)
         newVert = vec4(newVert)
         currentListVertices.push(newVert)
-        currentListColors.push(color)
+    }
+}
 
+function getListColors(){
+    var list = lists[1]
+    var colorValues = []
+    for (let i = 0; i < num_vertices; i++) {
+        colorValues.push([i, list[i][3]])
+        // colorValues.push([list[i][3], i])
+    }
+    for (let i = 0; i < num_vertices; i++) {
+        currentListColors.push(0)
+    }
+
+    colorValues = colorValues.sort((a, b) => b[1] - a[1])
+
+    var j = 0
+    var count = 0
+    var spaceSize = num_vertices/9
+
+    for (let i = 0; i < num_vertices; i++) {
+        currentListColors[colorValues[i][0]] = palette[j]
+        count++
+        if(count >= spaceSize){
+            count = 0
+            j++
+        }
     }
 
 }
-
 
 function createListElements(){
     currentListPositionsArray = []
@@ -262,41 +334,43 @@ function createListElements(){
     for(var i = 0; i < elements.length; i++)
 	{
         var face = elements[i]
-        face = formatElement(face)
+        var solidFace = formatElementSolid(face)
+        var wireFace = formatElement(face)
         //WIREFRAME
-        currentListPositionsArray.push(currentListVertices[face[0]])
+        currentListPositionsArray.push(currentListVertices[wireFace[0]])
         currentListColorsArray.push(vec4(0.7, 0.7, 0.7, 1.0))
         var wireframeSize = 2
 
 
-        for(var j = 0; j< face.length; j++)
+        for(var j = 0; j< wireFace.length; j++)
 		{
-            currentListPositionsArray.push(currentListVertices[face[j]])
-            currentListPositionsArray.push(currentListVertices[face[j]])
+            currentListPositionsArray.push(currentListVertices[wireFace[j]])
+            currentListPositionsArray.push(currentListVertices[wireFace[j]])
             currentListColorsArray.push(vec4(0.7, 0.7, 0.7, 1.0))
             currentListColorsArray.push(vec4(0.7, 0.7, 0.7, 1.0))
             wireframeSize += 2
 		}
 
-        currentListPositionsArray.push(currentListVertices[face[0]])
+        currentListPositionsArray.push(currentListVertices[wireFace[0]])
         currentListColorsArray.push(vec4(0.7, 0.7, 0.7, 1.0))
         meshVerticesQuantity[i] = wireframeSize
 
 
         // SOLID
-        var v0 = currentListVertices[face[0]]
+        var v0 = currentListVertices[solidFace[0]]
+        var v0Color = currentListColors[solidFace[0]]
         var triangleSize = 0
 
-        for(var j = 1; j< face.length - 1; j++)
+        for(var j = 1; j< solidFace.length - 1; j++)
 		{
             currentListPositionsArray.push(v0)
-            currentListColorsArray.push(listColor)
+            currentListColorsArray.push(v0Color)
 
-            currentListPositionsArray.push(currentListVertices[face[j]])
-            currentListColorsArray.push(listColor)
+            currentListPositionsArray.push(currentListVertices[solidFace[j]])
+            currentListColorsArray.push(currentListColors[solidFace[j]])
 
-            currentListPositionsArray.push(currentListVertices[face[j+1]])
-            currentListColorsArray.push(listColor)
+            currentListPositionsArray.push(currentListVertices[solidFace[j+1]])
+            currentListColorsArray.push(currentListColors[solidFace[j + 1]])
 
             triangleSize += 3
 		}
@@ -312,40 +386,42 @@ function createElements(){ //cria o array de vertices para fazer um wireframe
     for(var i = 0; i < elements.length; i++)
 	{
         var face = elements[i]
-        face = formatElement(face)
+        var solidFace = formatElementSolid(face)
+        var wireFace = formatElement(face)
+
         //WIREFRAME
-        positionsArray.push(vertices[face[0]])
+        positionsArray.push(vertices[wireFace[0]])
         colorsArray.push(wireColor)
         var wireframeSize = 2
 
 
-        for(var j = 0; j< face.length; j++)
+        for(var j = 0; j< wireFace.length; j++)
 		{
-            positionsArray.push(vertices[face[j]])
-            positionsArray.push(vertices[face[j]])
+            positionsArray.push(vertices[wireFace[j]])
+            positionsArray.push(vertices[wireFace[j]])
             colorsArray.push(wireColor)
             colorsArray.push(wireColor)
             wireframeSize += 2
 		}
 
-        positionsArray.push(vertices[face[0]])
+        positionsArray.push(vertices[wireFace[0]])
         colorsArray.push(wireColor)
         meshVerticesQuantity[i] = wireframeSize
 
 
         // SOLID
-        var v0 = vertices[face[0]]
+        var v0 = vertices[solidFace[0]]
         var triangleSize = 0
 
-        for(var j = 1; j< face.length - 1; j++)
+        for(var j = 1; j< solidFace.length - 1; j++)
 		{
             positionsArray.push(v0)
             colorsArray.push(solidColor)
 
-            positionsArray.push(vertices[face[j]])
+            positionsArray.push(vertices[solidFace[j]])
             colorsArray.push(solidColor)
 
-            positionsArray.push(vertices[face[j+1]])
+            positionsArray.push(vertices[solidFace[j+1]])
             colorsArray.push(solidColor)
 
             triangleSize += 3
@@ -390,11 +466,60 @@ function formatElement(element){ //element = type, size, points...
     return wireframeArray
 }
 
+function formatElementSolid(element){ //element = type, size, points...
+    var type = parseInt(element[0])
+    var size = parseInt(element[1])
+    var points = element.slice(2)
+
+    var triangleArray = []
+
+    if(type == 2 && size > 1){
+        
+        
+        let limit = size
+        let count = 0
+        let offset = size+1
+        let skip = 1
+        triangleArray.push(points[0])
+
+        for (let i = 0; limit >= 1; i += skip) {
+            if(count == limit){
+                
+                if(skip == 1){
+                    triangleArray.push(points[i+offset-1])
+                    i = i+offset-1 + 1
+                    offset = offset - 2
+                }
+                else{
+                    triangleArray.push(points[i+offset+1])
+                    i = i+offset+1 - 1
+                }
+                    
+                
+                skip = skip*-1
+                count = 0
+                limit --
+                
+            }else{
+                triangleArray.push(points[i+offset])
+                triangleArray.push(points[i+skip])
+                count++
+            }
+
+            if(limit == 0)
+                break
+        }
+        triangleArray = triangleArray.slice(0, triangleArray.length-1)
+    }else{
+        triangleArray = points
+    }
+    return triangleArray
+}
+
 function startDragging( newMouseX, newMouseY ) {
 	mouseX = newMouseX
 	mouseY = newMouseY
 }
-
 
 function degToRad(degrees) {
 	return degrees * Math.PI / 180
@@ -410,26 +535,29 @@ function drag( newMouseX, newMouseY ) {
 	mouseX = newMouseX
 	mouseY = newMouseY
 	if(dragging = true){
-        if(keyDown == 0 ){
+        if( keyDown == 2 ){
+            translateMat = mult(translateMat, translate(0., 0., dy*zoomGain))		
+        }else if( keyDown == 1 ){
+            translateMat = mult(translateMat, translate(dx * translationGain, dy * translationGain, 0.))	
+        }else if(keyDown == 0 ){
             var angle = Math.sqrt( dx*dx + dy*dy )
             var rotation = mat4()
 
             rotation = rotate(degToRad(angle*10), [-dy, dx, 0])
             rotateMat = mult(rotation, rotateMat)
-
-        }
-        else if( keyDown== 1 ){
-            translateMat = mult(translateMat, translate(dx * translationGain, dy * translationGain, 0.))	
-        }
-        else if( keyDown == 2 ){
-            translateMat = mult(translateMat, translate(0., 0., dy*zoomGain))		
         }
     }
-	
 }
 
 function mouseDown(event) {
 	dragging = true
+    if(keyDown != 2){
+        if(event.button == 2 ){
+            keyDown = 1
+        }else{
+            keyDown = 0
+        }
+    }
 	startDragging(event.clientX,event.clientY)
 }
 
@@ -444,32 +572,23 @@ function mouseMove(event) {
 }
 
 function handleKeyDown(event){
-    if(keyDown == 0){
-        if(event.keyCode == 17 ){
-            keyDown = 1
-            console.log("holding ctrl")
-        }
-        else if(event.keyCode == 16 ){
-            keyDown = 2
-            console.log("holding shift")
-        }
+    if(event.keyCode == 16 && keyDown != 2){
+        lastKeyDown = keyDown
+        keyDown = 2
+        console.log("holding shift")
     }
 }
 
 function handleKeyUp(event){
-	if(event.keyCode == 17 ){
-        console.log("lifting ctrl")
-		keyDown = 0
-	}
-	else if(event.keyCode == 16 ){
+	if(event.keyCode == 16 ){
         console.log("lifting shift")
-		keyDown = 0
+		keyDown = lastKeyDown
 	}
 }
 
 
 
-let gl = canvas.getContext("webgl2")
+
 if (!gl) {
     console.error("WebGL 2 not available")
     document.body.innerHTML = "This example requires WebGL 2 which is unavailable on this system."
@@ -503,32 +622,27 @@ gl.useProgram(program)
 
 
 
-function toggle_list(){
-    console.log(!render_list);
-    render_list = !render_list
-    if(render_list){
-        createList()
-        createListElements()
-        loaded_list = 0
-    }
-}
+
 
 function run(){
     createElements() // adiciona no positionsArray a versao wireframe e uma versao solida de cada elemento
     
-    console.log(positionsArray)
     let listBuffer = gl.createBuffer()
+
     let positionBuffer = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
     gl.bufferData(gl.ARRAY_BUFFER, flatten(positionsArray), gl.STATIC_DRAW)
+
     let positionLoc = gl.getAttribLocation( program, "position")
     gl.vertexAttribPointer(positionLoc, 4, gl.FLOAT, false, 0, 0)
     gl.enableVertexAttribArray(positionLoc)
 
     let listColorBuffer = gl.createBuffer()
+
     let colorBuffer = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)
     gl.bufferData(gl.ARRAY_BUFFER, flatten(colorsArray), gl.STATIC_DRAW)
+
     let colorLoc = gl.getAttribLocation(program, "color")
     gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 0, 0)
     gl.enableVertexAttribArray(colorLoc)
@@ -540,7 +654,6 @@ function run(){
     let modelViewProjectionMatrixLoc = gl.getUniformLocation(program, "mvpMatrix")
 
     let render = function (){
-        // console.log(running);
         gl.clear(gl.COLOR_BUFFER_BIT)
         gl.clearColor(1.0, 1.0, 1.0, 1.0)
 
@@ -551,7 +664,6 @@ function run(){
             gl.bufferData(gl.ARRAY_BUFFER, flatten(currentListPositionsArray), gl.STATIC_DRAW)
             loaded_list = 1
         }
-
         modelViewMatrix = setMatrix()   
         modelViewProjection = mult(projectionMatrix, modelViewMatrix)
         
@@ -568,8 +680,9 @@ function run(){
             gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)
             gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 0, 0)
 
-            gl.drawArrays(gl.LINES,j*(wireSize + solidSize), wireSize)
-            gl.drawArrays(gl.TRIANGLES,j*(wireSize + solidSize) + wireSize, solidSize)
+            if(render_undeformed == 1)
+                gl.drawArrays(gl.LINES,j*(wireSize + solidSize), wireSize)
+            // gl.drawArrays(gl.TRIANGLES,j*(wireSize + solidSize) + wireSize, solidSize)
 
             if(render_list && loaded_list == 1){
 
@@ -578,9 +691,10 @@ function run(){
 
                 gl.bindBuffer(gl.ARRAY_BUFFER, listColorBuffer)
                 gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 0, 0)
-
-                gl.drawArrays(gl.LINES,j*(wireSize + solidSize), wireSize)
-                gl.drawArrays(gl.TRIANGLES,j*(wireSize + solidSize) + wireSize, solidSize)
+                if(render_deformed == 1)
+                    gl.drawArrays(gl.LINES,j*(wireSize + solidSize), wireSize)
+                if(render_results == 1)
+                    gl.drawArrays(gl.TRIANGLES,j*(wireSize + solidSize) + wireSize, solidSize)
             }
         }
         
