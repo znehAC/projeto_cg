@@ -8,12 +8,34 @@
     <title>Document</title>
 </head>
 <body>
-    <input type="file" id="inputfile">
-    <button id="example-button" onclick="load_example()">Carregar Preview</button>
-    <button id="list-button" onclick="toggle_list()" style="display: none;" >Alternar lista</button>
-    <button id="undeformed-button" onclick="toggle_undeformed()" style="display: none;" >Alternar mesha</button>
-    <button id="deformed-button" onclick="toggle_deformed()" style="display: none;" >Alternar mesha deformada</button>
-    <button id="results-button" onclick="toggle_results()" style="display: none;" >Alternar resultados</button>
+    <div style="display: flexbox; ">
+
+        <div style="height: 10%; margin: 10px;">
+    
+            <input type="file" id="inputfile">
+            <button id="example-button" onclick="load_example()">Carregar Preview</button>
+            <button id="list-button" onclick="toggle_list()" style="display: none;" >Carregar lista</button>
+            <button id="undeformed-button" onclick="toggle_undeformed()" style="display: none;" >Remover mesha</button>
+            <button id="deformed-button" onclick="toggle_deformed()" style="display: none;" >Remover mesha deformada</button>
+            <button id="results-button" onclick="toggle_results()" style="display: none;" >Remover resultados</button>
+        </div>
+        
+        <div style="display: flex; background-color: lightgray; padding: 10px; height: 90%;">
+            <canvas id="webgl-canvas" style="width: 90%; height: 100%; background-color: white;" ></canvas>
+            
+            <div style="height: 100%; margin: 10px; background-color: lightblue; width: 10%; " >
+                <p>asdfasd</p>
+                <p>asdfasd</p>
+                <p>asdfasd</p>
+                <p>asdfasd</p>
+                <p>asdfasd</p>
+                <p>asdfasd</p>
+                <p>asdfasd</p>
+                <p>asdfasd</p>
+            </div>
+        </div>
+
+    </div>
 
 
     <script type="vertex" id="vs">
@@ -21,7 +43,7 @@
 
         in vec4 position;
         in vec4 color;
-        out vec4 vColor;
+        flat out vec4 vColor;
         uniform mat4 mvpMatrix;
 
         void main() {
@@ -34,16 +56,17 @@
         #version 300 es
         precision highp float;
 
-        in vec4 vColor;
+        flat in vec4 vColor;
         out vec4 fragColor;
 
         void main() {
-            fragColor = vColor;
+            fragColor =  vColor;
         }
     </script>
 
-    <canvas id="webgl-canvas"></canvas>
     <script type="text/javascript" src="Common/MV.js"></script>
+    <script type="text/javascript" src="Common/initShaders.js"></script>
+    
     <script type="text/javascript" src="index.js"></script> 
     
     
