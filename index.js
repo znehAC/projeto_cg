@@ -32,6 +32,7 @@ var currentListSolidPositionsArray = [] // dados do buffer de vertices das faces
 var currentListWireframeColorsArray = [] // buffer de cores
 var currentListSolidColorsArray = [] // buffer de cores
 
+let currentListIndex = -1
 let render_undeformed = 1
 let render_deformed = 1
 let render_results = 1
@@ -41,6 +42,7 @@ let currentListColors = [] //armazena as cores de cada vertice da lista
 
 let loaded_list = 1
 let resetted = 1
+let deformationScale = document.getElementsByClassName("quantity-field")[0].value
 
 let dragging = false
 let mouseX = 0
@@ -72,6 +74,9 @@ document.getElementById('inputfile').addEventListener('change', load_file)
 
 canvas.addEventListener("contextmenu", e => e.preventDefault());
 
+document.getElementsByClassName("button-minus")[0].addEventListener('click', function(e){decrementValue(e)})
+document.getElementsByClassName("button-plus")[0].addEventListener('click', function(e){incrementValue(e)})
+// document.getElementsByClassName("quantity-field")[0].addEventListener('change', function(e){update_deformationScale(e)})
 
 document.onkeydown = handleKeyDown
 document.onkeyup = handleKeyUp
@@ -130,16 +135,21 @@ function load_file(){
     fr.readAsText(this.files[0])
 }
 
-function toggle_list(){
-    render_list = !render_list
+function toggle_list(index){
+    if(index == currentListIndex){
+        render_list = false
+        currentListIndex = -1
+    }
+    else
+        render_list = true
     if(render_list){
-        
-        createList()
-        createListElements()
+        currentListIndex = index
+        createList(index)
+        createListElements(index)
         
         loaded_list = 0
     }
-    document.getElementById('list-button').style.display = 'none'
+    // document.getElementById('list-button').style.display = 'none'
 }
 
 function toggle_undeformed(){
@@ -165,6 +175,63 @@ function toggle_deformed(){
         document.getElementById('deformed-button').innerText = 'Remover mesha deformada'    
 }
 
+function incrementValue(e) {
+    e.preventDefault();
+    var fieldName = $(e.target).data('field');
+    var parent = $(e.target).closest('div');
+    var currentVal = parseInt(parent.find('input[name=' + fieldName + ']').val(), 10);
+
+    if (!isNaN(currentVal)) {
+        parent.find('input[name=' + fieldName + ']').val(currentVal + 1);
+        deformationScale = currentVal + 1
+    } else {
+        deformationScale = 1
+        parent.find('input[name=' + fieldName + ']').val(1);
+    }
+    console.log(deformationScale);
+}
+  
+function decrementValue(e) {
+    e.preventDefault();
+    var fieldName = $(e.target).data('field');
+    var parent = $(e.target).closest('div');
+    var currentVal = parseInt(parent.find('input[name=' + fieldName + ']').val(), 10);
+
+    if (!isNaN(currentVal) && currentVal > 1) {
+        parent.find('input[name=' + fieldName + ']').val(currentVal - 1);
+        deformationScale = currentVal - 1
+    } else {
+        deformationScale = 1   
+        parent.find('input[name=' + fieldName + ']').val(1);
+    }
+    console.log(deformationScale);
+}
+
+function apply_scale(){
+    deformationScale = Number(document.getElementsByClassName("quantity-field")[0].value)
+    console.log(deformationScale);
+    if(currentListIndex != -1){
+        currentListColors = []
+        currentListVertices = []
+        currentListSolidColorsArray = []
+        currentListSolidPositionsArray = []
+        currentListWireframeColorsArray = []
+        currentListWireframePositionsArray = []
+        createList(currentListIndex)
+        createListElements(currentListIndex)
+    }
+    
+    loaded_list = 0
+}
+
+function update_deformationScale(e){
+    console.log("ativou evento");
+    // e.preventDefault();
+    var fieldName = $(e.target).data('field');
+    var parent = $(e.target).closest('div');
+    var currentVal = parseInt(parent.find('input[name=' + fieldName + ']').val(), 10);
+    // deformationScale = currentVal
+}
 
 
 function procces_file(file){
@@ -186,14 +253,43 @@ function procces_file(file){
     console.log("ELEMENTS")
     console.log(elements)
 
-    get_lists(file_text[4])
+    
+    get_lists(file_text.slice(4))
     console.log("LISTS")
     console.log(lists)
+    load_listText()
 
-    document.getElementById("list-button").style.display = "inline"
+
+    // document.getElementById("list-button").style.display = "inline"
     document.getElementById("undeformed-button").style.display = "inline"
     document.getElementById("deformed-button").style.display = "inline"
     document.getElementById("results-button").style.display = "inline"
+}
+
+function load_listText() {
+    var parent = document.getElementById("list-block")
+
+    for (let i = 0; i < num_lists; i++) {
+        var listName = lists[i*2]
+
+        var listItem = document.createElement("a");
+        listItem.style.margin = "3px"
+        listItem.innerText = listName
+        listItem.id = i
+        listItem.addEventListener("click", ev => {clicked(ev)})
+        parent.appendChild(listItem)
+    }
+}
+
+function clicked(event){
+    // console.log(event.target.id, "clicked");
+    currentListColors = []
+    currentListVertices = []
+    currentListSolidColorsArray = []
+    currentListSolidPositionsArray = []
+    currentListWireframeColorsArray = []
+    currentListWireframePositionsArray = []
+    toggle_list(event.target.id)
 }
 
 function get_meta(text){
@@ -266,43 +362,47 @@ function get_vertices_quantity(size, type){
 }
 
 function get_lists(text){
+    for (let i = 0; i < num_lists; i++) {
+        get_list(text[i])
+        
+    }
+}
+
+function get_list(text){
     text = text.split("\n")
     var name = text[1].replace("\r", "")
     text = text.slice(2)
     text = text.filter(function(value, index, arr){ 
         return value != ""
     })
+    
+    var list = text.slice(0, num_vertices)
 
-  
-    for (let i = 0; i < num_lists; i++) {
-        var list = text.slice(i*num_vertices, num_vertices)
-
-        list = list.filter(function(value, index, arr){ 
-                    return value != ""
-                })
-
-        for (let i = 0; i < list.length; i++) {
-            var item = list[i].split(" ")
-
-            item = item.filter(function(value, index, arr){ 
+    list = list.filter(function(value, index, arr){ 
                 return value != ""
             })
-            for (let j = 0; j < item.length; j++) {
-                item[j] = Number(item[j])   
-            }
-                list[i] = item
+
+    for (let i = 0; i < list.length; i++) {
+        item = list[i].split(" ").filter(function(value, index, arr){ 
+            return value != ""
+        })
+
+        for (let j = 0; j < item.length; j++) {
+            item[j] = Number(item[j])
+            
         }
-                
-        lists.push(name)
-        lists.push(list)  
+        list[i] = item
     }
+
+    lists.push(name)
+    lists.push(list)
 }
 
-function createList(){
-    getListColors()
-    var listName = lists[0]
-    var list = lists[1]
-
+function createList(index){
+    getListColors(index)
+    var listName = lists[index*2]
+    var list = lists[index*2+1]
+    var newListVertices = []
     for (let i = 0; i < num_vertices; i++) {
         var vertOffset = list[i]
         var color = vertOffset[3]
@@ -313,23 +413,25 @@ function createList(){
         var newVert = []
 
         for (let j = 0; j < 3; j++) {
-            newVert[j] = vert[j] + vertOffset[j]
+            newVert[j] = vert[j] + vertOffset[j]*deformationScale
         }
         newVert.push(1)
         newVert = vec4(newVert)
-        currentListVertices.push(newVert)
+        newListVertices.push(newVert)
     }
+    currentListVertices = newListVertices
 }
 
-function getListColors(){
-    var list = lists[1]
+function getListColors(index){
+    var list = lists[index*2+1]
     var colorValues = []
+    var newListColors = []
     for (let i = 0; i < num_vertices; i++) {
         colorValues.push([i, list[i][3]])
         // colorValues.push([list[i][3], i])
     }
     for (let i = 0; i < num_vertices; i++) {
-        currentListColors.push(0)
+        newListColors.push(0)
     }
 
     colorValues = colorValues.sort((a, b) => b[1] - a[1])
@@ -339,28 +441,15 @@ function getListColors(){
     var spaceSize = num_vertices/9
 
     for (let i = 0; i < num_vertices; i++) {
-        currentListColors[colorValues[i][0]] = palette[j]
+        newListColors[colorValues[i][0]] = palette[j]
         count++
         if(count >= spaceSize){
             count = 0
             j++
         }
     }
+    currentListColors = newListColors
 
-}
-
-function getOffsetedListVertices(){
-    let newVertices = []
-    for (let i = 0; i < num_vertices; i++) {
-        var vert = currentListVertices[i]
-        var newVert = vec4(0., 0., 0., 1.)
-        for (let j = 0; j < 3; j++) {
-            newVert[j] = vert[j] + 3.
-        }
-
-        newVertices.push(newVert)
-    }
-    return newVertices
 }
 
 function createListElements(){

@@ -4,36 +4,50 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+    <link rel="stylesheet" href="style.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <title>Document</title>
 </head>
 <body>
-    <div style="display: flexbox; ">
+    <div style="display: flexbox; flex-direction: column;">
 
-        <div style="height: 10%; margin: 10px;">
+        <div style="height: 10%; width: 100%; display: flex; flex-direction: row; align-items: center;">
     
-            <input type="file" id="inputfile">
-            <button id="example-button" onclick="load_example()">Carregar Preview</button>
-            <button id="list-button" onclick="toggle_list()" style="display: none;" >Carregar lista</button>
-            <button id="undeformed-button" onclick="toggle_undeformed()" style="display: none;" >Remover mesha</button>
-            <button id="deformed-button" onclick="toggle_deformed()" style="display: none;" >Remover mesha deformada</button>
-            <button id="results-button" onclick="toggle_results()" style="display: none;" >Remover resultados</button>
+            <input type="file" id="inputfile" style="margin-left: 10px; margin-right: 5px;">
+            <button id="example-button" onclick="load_example()" style="width:fit-content; height: fit-content; margin-left: 10px; margin-right: 10px;">Carregar Preview</button>
+            <!-- <button id="list-button" onclick="toggle_list()" style="display: none;" >Carregar lista</button> -->
+            <button id="undeformed-button" onclick="toggle_undeformed()" style="display: none; width:fit-content; height: fit-content;margin-left: 10px; margin-right: 10px;" >Remover mesha</button>
+            <button id="deformed-button" onclick="toggle_deformed()" style="display: none; width:fit-content; height: fit-content;margin-left: 10px; margin-right: 10px;" >Remover mesha deformada</button>
+            <button id="results-button" onclick="toggle_results()" style="display: none; width:fit-content; height: fit-content;margin-left: 10px; margin-right: 10px;" >Remover resultados</button>
+            <!-- Change the `data-field` of buttons and `name` of input field's for multiple plus minus buttons-->
+            
+            
+            
+            
+            <div class="input-group" style="margin-left: 10px; margin-right: 5px;">
+                <label for="quantity-field" style="text-align: center;">Escala</label>
+                <input type="button" value="-" class="button-minus" data-field="quantity">
+                <input type="number" step="1" max="" value="1" name="quantity" class="quantity-field">
+                <input type="button" value="+" class="button-plus" data-field="quantity">
+            </div>
+
+            <button id="apply-button" onclick="apply_scale()" style="width:fit-content; height: fit-content;">Aplicar</button>
+
+
+
         </div>
         
+
         <div style="display: flex; background-color: lightgray; padding: 10px; height: 90%;">
             <canvas id="webgl-canvas" style="width: 90%; height: 100%; background-color: white;" ></canvas>
             
-            <div style="height: 100%; margin: 10px; background-color: lightblue; width: 10%; " >
-                <p>asdfasd</p>
-                <p>asdfasd</p>
-                <p>asdfasd</p>
-                <p>asdfasd</p>
-                <p>asdfasd</p>
-                <p>asdfasd</p>
-                <p>asdfasd</p>
-                <p>asdfasd</p>
+            <div id="list-block" style="height: 100%; margin: 10px; background-color: lightblue; width: 10%; padding-left: 10px; display: flex; flex-direction: column;" >
+                <h3 style="margin: 3px;">Listas</h1>
             </div>
         </div>
+
+
+
 
     </div>
 
