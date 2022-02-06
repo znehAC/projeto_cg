@@ -25,6 +25,9 @@ let colorsArray = []
 let wireColor = vec4(0.0, 0.0, 0.0, 1.0)
 let solidColor = vec4(0.9, 0.9, 0.9, 1.0)
 let listColor = vec4(0.0, 0.6, 0.0, 1.0)
+let labelPositionsArray = []
+let labelColorsArray = []
+let texCoordsArray = [];
 
 let render_list = false
 var currentListWireframePositionsArray = [] // dados do buffer de vertices do wireframe
@@ -53,22 +56,34 @@ let lastKeyDown = 0
 let rotationGain= 1.0
 let translationGain= 0.012
 let zoomGain= .01
-
+let rotation = 0
 let translateMat = translate(0., 0., 0.)
+
+
 
 let rotateMat = mat4()
 
 let modelViewMatrix = mult(translateMat, rotateMat)
 
+// let textModelViewMatrix = mult(translateMat, rotateX(190))
+let textTranslateMat = translateMat
+let textRotateMat = rotateX(190)
+
 var canvas = document.getElementById("webgl-canvas")
 canvas.width = window.innerWidth
-canvas.height = window.innerHeight
+canvas.height = window.innerHeight*0.975
 let aspect= canvas.width/canvas.height
+
+let labelOffsetX = 0.08/aspect
+let labelOffsetY = 0.095/aspect
 
 let orthoScale = 5.0
 let scaleFactor = canvas.width/canvas.height
 // let projectionMatrix = perspective(45,aspect,0.5,1000.5)
 let projectionMatrix = ortho(-orthoScale*scaleFactor, orthoScale*scaleFactor, -orthoScale, orthoScale, 0.5, 1000.5)
+// let textProjectionMatrix = perspective(10, aspect, 0.5, 1000.5)
+
+
 
 document.getElementById('inputfile').addEventListener('change', load_file)
 
@@ -238,6 +253,7 @@ function procces_file(file){
     reset()
     var file_text = file.split('#')
     var meta = file_text[1].split('\n')[1]
+    
     get_meta(meta)
     console.log("INFO")
     console.log(num_vertices)
@@ -556,8 +572,6 @@ function createElements(){ //cria o array de vertices para fazer um wireframe
         // solidVerticesQuantity[i] = triangleSize
 
 	}
-    console.log("positionsArray");
-    console.log(positionsArray);
 }
 
 function formatElement(element){ //element = type, size, points...
@@ -668,18 +682,18 @@ function drag( newMouseX, newMouseY) {
 	mouseY = newMouseY
 	if(dragging = true){
         if( keyDown == 2 ){
-            // translateMat = mult(translateMat, translate(0., 0., dy*zoomGain))	
+            textTranslateMat = mult(textTranslateMat, translate(0., 0., dy*zoomGain))	
             if(orthoScale >= 0){
                 orthoScale = orthoScale - dy*zoomGain
                 if(orthoScale < 0) orthoScale = 0
             }
             
             projectionMatrix = 	ortho(-orthoScale*scaleFactor, orthoScale*scaleFactor, -orthoScale, orthoScale, 0.1, 100.)
+
         }else if( keyDown == 1 ){
             translateMat = mult(translateMat, translate(dx * translationGain, dy * translationGain, 0.))	
         }else if(keyDown == 0 ){
             var angle = Math.sqrt( dx*dx + dy*dy )
-            var rotation = mat4()
 
             rotation = rotate(degToRad(angle*10), [-dy, dx, 0])
             rotateMat = mult(rotation, rotateMat)
@@ -724,6 +738,51 @@ function handleKeyUp(event){
 	}
 }
 
+function generateQuad(a, b, c, d){
+    verts = []
+    verts.push(a)
+    texCoordsArray.push(texCoord[1])
+    verts.push(b)
+    texCoordsArray.push(texCoord[2])
+    verts.push(c)
+    texCoordsArray.push(texCoord[3])
+    verts.push(c)
+    texCoordsArray.push(texCoord[3])
+    verts.push(a)
+    texCoordsArray.push(texCoord[1])
+    verts.push(d)
+    texCoordsArray.push(texCoord[0])
+    return verts
+}
+
+function generateLabelsPositions(){
+    labelPositionsArray = []
+    labelColorsArray = []
+    texCoordsArray = []
+    labelSize = 0.1
+
+    for (let i = 0; i < num_vertices; i++) {
+        vert = vertices[i]
+        x = vert[0]
+        y = vert[1]
+        z = vert[2]
+
+        a = vec4(-labelOffsetX, 0.0, 0.0, 0.0)
+        b = vec4(labelOffsetX, 0.0, 0.0, 0.0)
+        c = vec4(labelOffsetX, labelOffsetY, 0.0, 0.0)
+        d = vec4(-labelOffsetX, labelOffsetY, 0.0, 0.0)
+        
+        quad = generateQuad(a, b, c, d)
+        
+        labelPositionsArray = labelPositionsArray.concat(quad)
+        for (let j = 0; j < 6; j++) {
+            labelColorsArray.push(vec4(0.3, 0.3, 0.3, 0.0))
+        }
+        
+    }
+}
+
+// ==============================================
 let gl = canvas.getContext("webgl2")
 
 if (!gl) {
@@ -731,24 +790,72 @@ if (!gl) {
     document.body.innerHTML = "This example requires WebGL 2 which is unavailable on this system."
 }
 
-gl.clearColor(0, 0, 0, 1)
 
+gl.clearColor(1.0, 1.0, 1.0, 1.0)
 gl.enable(gl.DEPTH_TEST)
 
 var program = initShaders(gl, "vs", "fs")
+var textProgram = initShaders(gl, "text-vertex-shader", "text-fragment-shader")
 
 gl.useProgram(program)
 
+var textCtx = document.createElement("canvas").getContext("2d");
+
+function makeTextCanvas(text, width, height) {
+  textCtx.canvas.width  = width;
+  textCtx.canvas.height = height;
+  textCtx.font = "20px monospace";
+  textCtx.textAlign = "center";
+  textCtx.textBaseline = "middle";
+  textCtx.fillStyle = "black";
+  textCtx.clearRect(0, 0, textCtx.canvas.width, textCtx.canvas.height);
+  textCtx.fillText(text, width / 2, height / 2);
+  return textCtx.canvas;
+}
+
+const texCoord = [
+    vec2(0, 0),
+    vec2(0, 1),
+    vec2(1, 1),
+    vec2(1, 0),
+];
+
+let textures = []
+
+function preLoadTextures(){
+    gl.useProgram(textProgram)
+    for (let i = 1; i <= num_vertices; i++) {
+        var textCanvas = makeTextCanvas(i, 100, 20);
+        textures[i-1] = gl.createTexture();
+
+        gl.bindTexture(gl.TEXTURE_2D, textures[i-1]);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textCanvas);
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    }
+}
 
 function run(){
     createElements() // adiciona no positionsArray a versao wireframe e uma versao solida de cada elemento
-    
+    generateLabelsPositions()
+    preLoadTextures()
     let listSolidBuffer = gl.createBuffer()
     let listWireframeBuffer = gl.createBuffer()
 
     let positionBuffer = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
     gl.bufferData(gl.ARRAY_BUFFER, flatten(positionsArray), gl.STATIC_DRAW)
+
+    let labelPositionBuffer = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, labelPositionBuffer)
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(labelPositionsArray), gl.STATIC_DRAW)
+
+    let labelColorBuffer = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, labelColorBuffer)
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(labelColorsArray), gl.STATIC_DRAW)
 
     let positionLoc = gl.getAttribLocation( program, "position")
     gl.vertexAttribPointer(positionLoc, 4, gl.FLOAT, false, 0, 0)
@@ -769,16 +876,30 @@ function run(){
     gl.polygonOffset(1,1)
     gl.enable(gl.POLYGON_OFFSET_FILL)
 
+    let tBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, tBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(texCoordsArray), gl.STATIC_DRAW);
+    let texCoordLoc = gl.getAttribLocation(textProgram, "texCoord");
+    gl.vertexAttribPointer(texCoordLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(texCoordLoc);
+
+
     let modelViewProjectionMatrixLoc = gl.getUniformLocation(program, "mvpMatrix")
+    let textModelViewProjectionMatrixLoc = gl.getUniformLocation(textProgram, "mvpMatrix")
+    // let textModelViewProjectionMatrix2Loc = gl.getUniformLocation(textProgram2, "mvpMatrix")
+    let textCenterLoc = gl.getUniformLocation(textProgram, "centerPoint")
 
     let render = function (){
+        // gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         canvas.width = window.innerWidth
-        canvas.height = window.innerHeight
+        canvas.height = window.innerHeight*0.95
         aspect= canvas.width/canvas.height
-
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.clear(gl.COLOR_BUFFER_BIT)
         gl.clearColor(1.0, 1.0, 1.0, 1.0)
 
+        gl.disable(gl.BLEND);
+        gl.depthMask(true);
         if(loaded_list == 0 && render_list){ //bind list buffers
             gl.bindBuffer(gl.ARRAY_BUFFER, listWireframeColorBuffer)
             gl.bufferData(gl.ARRAY_BUFFER, flatten(currentListWireframeColorsArray), gl.STATIC_DRAW)
@@ -794,14 +915,16 @@ function run(){
         }
         modelViewMatrix = setMatrix()   
         modelViewProjection = mult(projectionMatrix, modelViewMatrix)
-        
+
+        gl.useProgram(program)
         gl.uniformMatrix4fv(modelViewProjectionMatrixLoc,false,flatten(modelViewProjection))
         
         //DRAWING EACH ELEMENT
         for(var j = 0; j < num_elements; j++){
             var wireSize = meshVerticesQuantity[j]
             var solidSize = solidVerticesQuantity[j]
-            
+
+            //================ DRAWN MAIN WIREFRAME ====================
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
             gl.vertexAttribPointer(positionLoc, 4, gl.FLOAT, false, 0, 0)
 
@@ -810,8 +933,8 @@ function run(){
 
             if(render_undeformed == 1)
                 gl.drawArrays(gl.LINES,j*(wireSize), wireSize)
-
-
+            
+            //================ DRAWN DEFORMATIONS ====================
             if(render_list && loaded_list == 1){
                 if(render_deformed == 1){
                     gl.bindBuffer(gl.ARRAY_BUFFER, listWireframeBuffer)
@@ -833,7 +956,36 @@ function run(){
                 }
             }
         }
-        
+
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.depthMask(false);
+        // gl.clear(gl.DEPTH_BUFFER_BIT)
+        gl.useProgram(textProgram)
+        gl.uniformMatrix4fv(textModelViewProjectionMatrixLoc,false,flatten(modelViewProjection))
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, labelPositionBuffer)
+        gl.vertexAttribPointer(positionLoc, 4, gl.FLOAT, false, 0, 0)
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, labelColorBuffer)
+        gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 0, 0)
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, tBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, flatten(texCoordsArray), gl.STATIC_DRAW);
+
+        // //================ DRAWN LABELS =======================
+        for(var w = 0; w < num_vertices; w++){
+            // var textTex = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, textures[w]); 
+
+            vert = vertices[w]
+    
+            gl.uniform4fv(textCenterLoc, vert)
+
+
+            gl.drawArrays(gl.TRIANGLES, w * 6, 6)
+        }
+
         requestAnimationFrame(render)
     }
 

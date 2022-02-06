@@ -39,8 +39,11 @@
         
 
         <div style="display: flex; background-color: lightgray; padding: 10px; height: 90%;">
-            <canvas id="webgl-canvas" style="width: 90%; height: 100%; background-color: white;" ></canvas>
-            
+            <div class="container">
+                <canvas id="webgl-canvas" style="width: 90%; height: 100%; background-color: white;" ></canvas>
+                <!-- <canvas id="text" style="width: 90%; height: 100%;" ></canvas> -->
+            </div>
+
             <div id="list-block" style="height: 100%; margin: 10px; background-color: lightblue; width: 10%; padding-left: 10px; display: flex; flex-direction: column;" >
                 <h3 style="margin: 3px;">Listas</h1>
             </div>
@@ -62,7 +65,7 @@
 
         void main() {
             vColor = color;
-            gl_Position = mvpMatrix*position ;
+            gl_Position =  mvpMatrix*position;
         }
     </script>
 
@@ -77,6 +80,50 @@
             fragColor =  vColor;
         }
     </script>
+
+    <script id="text-vertex-shader" type="vertex">
+        #version 300 es
+        in vec4 position;
+        in vec4 color;
+        in vec2 texCoord;
+
+        out vec4 vColor;
+        out vec2 ftexCoord;
+
+        uniform mat4 mvpMatrix;
+        uniform vec4 centerPoint;
+
+        void main() {
+            vColor = color;
+
+            ftexCoord = texCoord;   
+
+            vec4 centerPos = mvpMatrix * centerPoint;   
+
+            gl_Position = centerPos + position;
+        }
+    </script>
+
+    <script id="text-fragment-shader" type="fragment">
+        #version 300 es
+        precision highp float;
+    
+        in vec2 ftexCoord;
+        in vec4 vColor;
+
+        out vec4 fragColor;
+    
+        uniform sampler2D textureMap;
+    
+        void main() {
+            vec4 tex1 = texture(textureMap, ftexCoord);
+
+            fragColor = tex1 + vec4(1.0, 0.0, 0.0, 0.0);
+        }
+    </script>
+
+
+
 
     <script type="text/javascript" src="Common/MV.js"></script>
     <script type="text/javascript" src="Common/initShaders.js"></script>
