@@ -39,6 +39,9 @@ let currentListIndex = -1
 let render_undeformed = 1
 let render_deformed = 1
 let render_results = 1
+let render_numbers = -1
+let render_points = 1
+
 
 let currentListVertices = [] //armazena as vertices da lista
 let currentListColors = [] //armazena as cores de cada vertice da lista
@@ -145,6 +148,7 @@ function load_file(){
     fr.onload=function(){
         file = fr.result
         procces_file(file)
+        
         run()
     }
     fr.readAsText(this.files[0])
@@ -172,14 +176,14 @@ function toggle_undeformed(){
     if (render_undeformed < 0) 
         document.getElementById('undeformed-button').innerText = 'Mostrar mesha'
     else
-        document.getElementById('undeformed-button').innerText = 'Remover mesha'   
+        document.getElementById('undeformed-button').innerText = 'Esconder mesha'   
 }
 function toggle_results(){
     render_results = render_results*-1
     if (render_results < 0) 
         document.getElementById('results-button').innerText = 'Mostrar resultados'
     else
-        document.getElementById('results-button').innerText = 'Remover resultados'   
+        document.getElementById('results-button').innerText = 'Esconder resultados'   
 }
 
 function toggle_deformed(){
@@ -187,7 +191,22 @@ function toggle_deformed(){
     if (render_deformed < 0) 
         document.getElementById('deformed-button').innerText = 'Mostrar mesha deformada'
     else
-        document.getElementById('deformed-button').innerText = 'Remover mesha deformada'    
+        document.getElementById('deformed-button').innerText = 'Esconder mesha deformada'    
+}
+function toggle_numbers(){
+    render_numbers = render_numbers*-1
+    if (render_numbers < 0) 
+        document.getElementById('numbers-button').innerText = 'Mostrar números'
+    else
+        document.getElementById('numbers-button').innerText = 'Esconder números'    
+}
+
+function toggle_points(){
+    render_points = render_points*-1
+    if (render_points < 0) 
+        document.getElementById('points-button').innerText = 'Mostrar pontos'
+    else
+        document.getElementById('points-button').innerText = 'Esconder pontos'    
 }
 
 function incrementValue(e) {
@@ -276,10 +295,12 @@ function procces_file(file){
     load_listText()
 
 
-    // document.getElementById("list-button").style.display = "inline"
+    document.getElementById('example-button').style.display = 'none'
     document.getElementById("undeformed-button").style.display = "inline"
     document.getElementById("deformed-button").style.display = "inline"
     document.getElementById("results-button").style.display = "inline"
+    document.getElementById("numbers-button").style.display = "inline"
+    document.getElementById("points-button").style.display = "inline"
 }
 
 function load_listText() {
@@ -761,6 +782,7 @@ function generateLabelsPositions(){
     texCoordsArray = []
     labelSize = 0.1
 
+
     for (let i = 0; i < num_vertices; i++) {
         vert = vertices[i]
         x = vert[0]
@@ -807,7 +829,7 @@ function makeTextCanvas(text, width, height) {
   textCtx.font = "20px monospace";
   textCtx.textAlign = "center";
   textCtx.textBaseline = "middle";
-  textCtx.fillStyle = "black";
+  textCtx.fillStyle = "red";
   textCtx.clearRect(0, 0, textCtx.canvas.width, textCtx.canvas.height);
   textCtx.fillText(text, width / 2, height / 2);
   return textCtx.canvas;
@@ -844,6 +866,10 @@ function run(){
     preLoadTextures()
     let listSolidBuffer = gl.createBuffer()
     let listWireframeBuffer = gl.createBuffer()
+
+    let pointPositionBuffer = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, pointPositionBuffer)
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(vertices), gl.STATIC_DRAW)
 
     let positionBuffer = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
@@ -957,6 +983,17 @@ function run(){
             }
         }
 
+        gl.bindBuffer(gl.ARRAY_BUFFER, pointPositionBuffer)
+        gl.vertexAttribPointer(positionLoc, 4, gl.FLOAT, false, 0, 0)
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)
+        gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 0, 0)
+        if(render_points == 1){
+            for(var w = 0; w < num_vertices; w++){
+                gl.drawArrays(gl.POINTS, w, 1)
+            }
+        }
+
+
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.depthMask(false);
@@ -974,16 +1011,17 @@ function run(){
         gl.bufferData(gl.ARRAY_BUFFER, flatten(texCoordsArray), gl.STATIC_DRAW);
 
         // //================ DRAWN LABELS =======================
-        for(var w = 0; w < num_vertices; w++){
-            // var textTex = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, textures[w]); 
-
-            vert = vertices[w]
+        if(render_numbers == 1){
+            for(var w = 0; w < num_vertices; w++){
+                // var textTex = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, textures[w]); 
     
-            gl.uniform4fv(textCenterLoc, vert)
-
-
-            gl.drawArrays(gl.TRIANGLES, w * 6, 6)
+                vert = vertices[w]
+        
+                gl.uniform4fv(textCenterLoc, vert)
+    
+                gl.drawArrays(gl.TRIANGLES, w * 6, 6)
+            }
         }
 
         requestAnimationFrame(render)
